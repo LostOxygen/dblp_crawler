@@ -127,7 +127,7 @@ def save_to_json(name: str, data: dict) -> None:
 def main(author: str) -> None:
     """main function of the crawler"""
 
-    for person in tqdm(author, desc="Authors"):
+    for person in tqdm(author, desc="Crawling authors"):
         # obtain the complete list of publications for a given author
         paper_list = get_list_of_papers(person)
 
