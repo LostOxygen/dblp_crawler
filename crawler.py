@@ -3,12 +3,15 @@
 """
 # -*- coding: utf-8 -*-
 # !/usr/bin/env python3
+import re
+from urllib.request import urlopen
 import requests
 from xml.dom import minidom
 from collections import defaultdict
 import argparse
 import json
 
+from bs4 import BeautifulSoup
 from tqdm.auto import tqdm
 
 
@@ -89,9 +92,20 @@ def get_paper_info(paper: str) -> defaultdict:
                 if item.getElementsByTagName("year"):
                     paper_info["year"] = item.getElementsByTagName("year")[0].firstChild.data
 
-                paper_info["pdf_links"] = ""
+                paper_info["links"] = ""
                 if item.getElementsByTagName("ee"):
-                    paper_info["pdf_links"] = item.getElementsByTagName("ee")[0].firstChild.data
+                    paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
+                    pdf_links = list()
+                    try:
+                        html = urlopen(paper_info["links"]).read()
+                        soup = BeautifulSoup(html, features="html.parser")
+                        for link in soup.find_all("a"):
+                            if link["href"].lower().endswith(".pdf"):
+                                pdf_links.append(link["href"])
+                        paper_info["pdf_links"] = pdf_links
+
+                    except Exception as e:
+                        paper_info["pdf_links"] = ""
         return paper_info
 
     elif publication_type == "conf":
@@ -108,9 +122,20 @@ def get_paper_info(paper: str) -> defaultdict:
                 if item.getElementsByTagName("year"):
                     paper_info["year"] = item.getElementsByTagName("year")[0].firstChild.data
 
-                paper_info["pdf_links"] = ""
+                paper_info["links"] = ""
                 if item.getElementsByTagName("ee"):
-                    paper_info["pdf_links"] = item.getElementsByTagName("ee")[0].firstChild.data
+                    paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
+                    pdf_links = list()
+                    try:
+                        html = urlopen(paper_info["links"]).read()
+                        soup = BeautifulSoup(html, features="html.parser")
+                        for link in soup.find_all("a"):
+                            if link["href"].lower().endswith(".pdf"):
+                                pdf_links.append(link["href"])
+                        paper_info["pdf_links"] = pdf_links
+
+                    except Exception as e:
+                        paper_info["pdf_links"] = ""
         return paper_info
     else:
         return None
