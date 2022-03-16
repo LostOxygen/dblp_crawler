@@ -4,7 +4,6 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/env python3
 import re
-from urllib.request import urlopen
 import requests
 from xml.dom import minidom
 from collections import defaultdict
@@ -97,12 +96,31 @@ def get_paper_info(paper: str) -> defaultdict:
                     paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
                     pdf_links = list()
                     try:
-                        html = requests.get(paper_info["links"]).text
-                        soup = BeautifulSoup(html, features="lxml")
+                        html = requests.get(paper_info["links"])
+                        soup = BeautifulSoup(html.text, features="html.parser")
                         for link in soup.find_all("a"):
-                            if link["href"].lower().endswith(".pdf"):
-                                print(link["href"])
+                            # special treatment for arxiv links
+                            if paper_info["links"].startswith("https://arxiv.org"):
+                                link["href"] = paper_info["links"].replace("abs", "pdf", 1) + ".pdf"
                                 pdf_links.append(link["href"])
+                                break
+
+                            if link["href"].lower().endswith(".pdf"):
+                                # escape parsing failures für slash characters
+                                link["href"] = link["href"].replace("%2", "/", 1)
+                                # obtain the domain name
+                                domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
+                                                          html.url)
+                                # if the link does not start with the domain name, concat it
+                                if not link["href"].startswith(domain_string.group()):
+                                    # and if it starts with another domain, use that instead
+                                    if link["href"].startswith("http") or \
+                                        link["href"].startswith("https"):
+                                        pdf_links.append(link["href"])
+                                    else:
+                                        pdf_links.append(domain_string.group() + link["href"])
+                                else:
+                                    pdf_links.append(link["href"])
                         paper_info["pdf_links"] = pdf_links
 
                     except Exception as e:
@@ -128,12 +146,31 @@ def get_paper_info(paper: str) -> defaultdict:
                     paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
                     pdf_links = list()
                     try:
-                        html = requests.get(paper_info["links"]).text
-                        soup = BeautifulSoup(html, features="html.parser")
+                        html = requests.get(paper_info["links"])
+                        soup = BeautifulSoup(html.text, features="html.parser")
                         for link in soup.find_all("a"):
-                            if link["href"].lower().endswith(".pdf"):
-                                print(link["href"])
+                            # special treatment for arxiv links
+                            if paper_info["links"].startswith("https://arxiv.org"):
+                                link["href"] = paper_info["links"].replace("abs", "pdf", 1) + ".pdf"
                                 pdf_links.append(link["href"])
+                                break
+
+                            if link["href"].lower().endswith(".pdf"):
+                                # escape parsing failures für slash characters
+                                link["href"] = link["href"].replace("%2", "/", 1)
+                                # obtain the domain name
+                                domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
+                                                          html.url)
+                                # if the link does not start with the domain name, concat it
+                                if not link["href"].startswith(domain_string.group()):
+                                    # and if it starts with another domain, use that instead
+                                    if link["href"].startswith("http") or \
+                                        link["href"].startswith("https"):
+                                        pdf_links.append(link["href"])
+                                    else:
+                                        pdf_links.append(domain_string.group() + link["href"])
+                                else:
+                                    pdf_links.append(link["href"])
                         paper_info["pdf_links"] = pdf_links
 
                     except Exception as e:
