@@ -23,6 +23,8 @@ def get_urlpt(name):
     response = requests.get(url)
 
     xmldoc = minidom.parseString(response.content)
+    assert xmldoc.getElementsByTagName("author"), f"No author with the name '{name}' found.."
+
     item = xmldoc.getElementsByTagName("author")[0]
 
     if item.hasAttribute("urlpt"):
