@@ -109,7 +109,7 @@ def get_paper_info(paper: str) -> defaultdict:
 
                             if link["href"].lower().endswith(".pdf"):
                                 # escape parsing failures für slash characters
-                                link["href"] = link["href"].replace("%2", "/", 1)
+                                link["href"] = link["href"].replace("%2F", "/", 1)
                                 # obtain the domain name
                                 domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
                                                           html.url)
@@ -159,7 +159,7 @@ def get_paper_info(paper: str) -> defaultdict:
 
                             if link["href"].lower().endswith(".pdf"):
                                 # escape parsing failures für slash characters
-                                link["href"] = link["href"].replace("%2", "/", 1)
+                                link["href"] = link["href"].replace("%2F", "/", 1)
                                 # obtain the domain name
                                 domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
                                                           html.url)
