@@ -97,10 +97,11 @@ def get_paper_info(paper: str) -> defaultdict:
                     paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
                     pdf_links = list()
                     try:
-                        html = urlopen(paper_info["links"]).read()
-                        soup = BeautifulSoup(html, features="html.parser")
+                        html = requests.get(paper_info["links"]).text
+                        soup = BeautifulSoup(html, features="lxml")
                         for link in soup.find_all("a"):
                             if link["href"].lower().endswith(".pdf"):
+                                print(link["href"])
                                 pdf_links.append(link["href"])
                         paper_info["pdf_links"] = pdf_links
 
@@ -127,10 +128,11 @@ def get_paper_info(paper: str) -> defaultdict:
                     paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
                     pdf_links = list()
                     try:
-                        html = urlopen(paper_info["links"]).read()
+                        html = requests.get(paper_info["links"]).text
                         soup = BeautifulSoup(html, features="html.parser")
                         for link in soup.find_all("a"):
                             if link["href"].lower().endswith(".pdf"):
+                                print(link["href"])
                                 pdf_links.append(link["href"])
                         paper_info["pdf_links"] = pdf_links
 
