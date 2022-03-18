@@ -4,6 +4,7 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/env python3
 import re
+import os
 import requests
 from xml.dom import minidom
 from collections import defaultdict
@@ -67,9 +68,11 @@ def get_list_of_papers(author_name: str) -> list:
     return papers
 
 
-def get_paper_info(paper: str) -> defaultdict:
+def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultdict:
     """helper function to obtain the information of a specific paper
        :param paper: string of the paper suburl
+       :param download_pdfs: flag to save the corresponding PDFs in a folder
+       :param author_name: string of the authors name
        :return: defaultdict of the information gathered for the chosen paper
     """
     url = "http://dblp.uni-trier.de/rec/xml/" + paper + ".xml"
@@ -96,6 +99,12 @@ def get_paper_info(paper: str) -> defaultdict:
                 paper_info["links"] = ""
                 if item.getElementsByTagName("ee"):
                     paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
+                    # if download flag is true and a doi link is given, download the pdf
+                    if paper_info["links"].startswith("https://doi.org") and download_pdf:
+                        orig_domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
+                                                       paper_info["links"])
+                        save_pdfs(paper_info["links"], author_name, orig_domain_string.group())
+
                     pdf_links = list()
                     try:
                         html = requests.get(paper_info["links"])
@@ -146,11 +155,18 @@ def get_paper_info(paper: str) -> defaultdict:
                 paper_info["links"] = ""
                 if item.getElementsByTagName("ee"):
                     paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
+                    # if download flag is true and a doi link is given, download the pdf
+                    if paper_info["links"].startswith("https://doi.org") and download_pdf:
+                        orig_domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
+                                                       paper_info["links"])
+                        save_pdfs(paper_info["links"], author_name, orig_domain_string.group())
+
                     pdf_links = list()
                     try:
                         html = requests.get(paper_info["links"])
                         soup = BeautifulSoup(html.text, features="html.parser")
                         for link in soup.find_all("a"):
+
                             # special treatment for arxiv links
                             if paper_info["links"].startswith("https://arxiv.org"):
                                 link["href"] = paper_info["links"].replace("abs", "pdf", 1) + ".pdf"
@@ -182,6 +198,20 @@ def get_paper_info(paper: str) -> defaultdict:
         return None
 
 
+def save_pdfs(url: str, name: str, domain: str) -> None:
+    """helper function to download the pdfs of a given link"""
+    name = name.replace(" ", "_").lower()
+    save_path = f"/{name}"
+    if not os.path.isdir(save_path):
+        os.mkdir(save_path)
+
+    doi_id = url.replace(domain, "")
+    pdf_url = f"https://sci.bban.top/pdf{doi_id}.pdf?download=true"
+    response = requests.get(pdf_url)
+    with open(save_path, "wb") as f:
+        f.write(response.content)
+
+
 def save_to_json(name: str, data: dict) -> None:
     """helper function to dump the paper data for every author into a JSON"""
     name = name.replace(" ", "_").lower()
@@ -190,7 +220,7 @@ def save_to_json(name: str, data: dict) -> None:
     output_file.close()
 
 
-def main(author: str) -> None:
+def main(author: str, download_pdf: bool) -> None:
     """main function of the crawler"""
 
     for person in tqdm(author, desc="Crawling authors"):
@@ -201,7 +231,7 @@ def main(author: str) -> None:
             # dictionary of all papers with their metadata
             paper_info_list = list()
             for paper in paper_list:
-                paper_info_list.append(get_paper_info(paper))
+                paper_info_list.append(get_paper_info(paper, download_pdf, person))
                 save_to_json(person, paper_info_list)
         else:
             print(f"No papers found for '{person}' ...")
@@ -209,7 +239,10 @@ def main(author: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--author", "-a", help="Authors to crawl", type=str, nargs="+", required=True)
+    parser.add_argument("--author", "-a", help="Authors to crawl",
+                        type=str, nargs="+", required=True)
+    parser.add_argument("--download_pdf", "-p", help="Download PDFs",
+                        action="store_true", default=False)
     args = parser.parse_args()
 
     main(**vars(args))
