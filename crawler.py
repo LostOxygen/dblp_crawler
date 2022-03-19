@@ -13,6 +13,7 @@ import json
 
 from bs4 import BeautifulSoup
 from tqdm.auto import tqdm
+from scidownl import scihub_download
 
 
 def get_urlpt(name):
@@ -103,7 +104,8 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
                     if paper_info["links"].startswith("https://doi.org") and download_pdf:
                         orig_domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
                                                        paper_info["links"])
-                        save_pdfs(paper_info["links"], author_name, orig_domain_string.group())
+                        save_doi_pdfs(paper_info["links"], author_name,
+                                      orig_domain_string.group(), paper)
 
                     pdf_links = list()
                     try:
@@ -111,7 +113,8 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
                         soup = BeautifulSoup(html.text, features="html.parser")
                         for link in soup.find_all("a"):
                             # special treatment for arxiv links
-                            if paper_info["links"].startswith("https://arxiv.org"):
+                            if paper_info["links"].startswith("https://arxiv.org") or \
+                                paper_info["links"].startswith("http://arxiv.org"):
                                 link["href"] = paper_info["links"].replace("abs", "pdf", 1) + ".pdf"
                                 pdf_links.append(link["href"])
                                 break
@@ -159,7 +162,8 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
                     if paper_info["links"].startswith("https://doi.org") and download_pdf:
                         orig_domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
                                                        paper_info["links"])
-                        save_pdfs(paper_info["links"], author_name, orig_domain_string.group())
+                        save_doi_pdfs(paper_info["links"], author_name,
+                                      orig_domain_string.group(), paper)
 
                     pdf_links = list()
                     try:
@@ -168,7 +172,8 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
                         for link in soup.find_all("a"):
 
                             # special treatment for arxiv links
-                            if paper_info["links"].startswith("https://arxiv.org"):
+                            if paper_info["links"].startswith("https://arxiv.org") or \
+                                paper_info["links"].startswith("http://arxiv.org"):
                                 link["href"] = paper_info["links"].replace("abs", "pdf", 1) + ".pdf"
                                 pdf_links.append(link["href"])
                                 break
@@ -198,18 +203,30 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
         return None
 
 
-def save_pdfs(url: str, name: str, domain: str) -> None:
-    """helper function to download the pdfs of a given link"""
+def save_doi_pdfs(url: str, name: str, domain: str, paper_name: str) -> None:
+    """helper function to download the pdfs of a given doi link"""
     name = name.replace(" ", "_").lower()
-    save_path = f"/{name}"
+    save_path = f"./{name}"
+    paper_name = paper_name.split("/")[-1] + ".pdf"
+    pdf_save_path = save_path + "/" + paper_name
+
+
     if not os.path.isdir(save_path):
         os.mkdir(save_path)
 
-    doi_id = url.replace(domain, "")
-    pdf_url = f"https://sci.bban.top/pdf{doi_id}.pdf?download=true"
-    response = requests.get(pdf_url)
-    with open(save_path, "wb") as f:
-        f.write(response.content)
+    scihub_download(url, paper_type="doi", out=pdf_save_path)
+
+
+def save_other_pdfs(url: str, name: str, domain: str, paper_name: str) -> None:
+    """helper function to download the pdfs of a given link"""
+    name = name.replace(" ", "_").lower()
+    save_path = f"./{name}"
+    paper_name = paper_name.split("/")[-1] + ".pdf"
+    pdf_save_path = save_path + "/" + paper_name
+
+
+    if not os.path.isdir(save_path):
+        os.mkdir(save_path)
 
 
 def save_to_json(name: str, data: dict) -> None:
@@ -232,6 +249,10 @@ def main(author: str, download_pdf: bool) -> None:
             paper_info_list = list()
             for paper in paper_list:
                 paper_info_list.append(get_paper_info(paper, download_pdf, person))
+                # save pdf links as pdf
+                #for paper_info["pdf_link"] in paper_info_list:
+                    #save_other_pdf(pdf_link, author_name, orig_domain_string.group(), paper)
+                    #pass
                 save_to_json(person, paper_info_list)
         else:
             print(f"No papers found for '{person}' ...")
