@@ -1,5 +1,6 @@
 *.json
-*.json
+*.pdf
+.pylintrc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

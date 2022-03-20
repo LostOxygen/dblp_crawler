@@ -5,11 +5,11 @@
 # !/usr/bin/env python3
 import re
 import os
-import requests
 from xml.dom import minidom
 from collections import defaultdict
 import argparse
 import json
+import requests
 
 from bs4 import BeautifulSoup
 from tqdm.auto import tqdm
@@ -99,45 +99,58 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
 
                 paper_info["links"] = ""
                 if item.getElementsByTagName("ee"):
-                    paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
+                    paper_info["links"] = item.getElementsByTagName("ee")[
+                        0].firstChild.data
                     # if download flag is true and a doi link is given, download the pdf
                     if paper_info["links"].startswith("https://doi.org") and download_pdf:
-                        orig_domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
-                                                       paper_info["links"])
-                        save_doi_pdfs(paper_info["links"], author_name,
-                                      orig_domain_string.group(), paper)
+                        save_doi_pdfs(paper_info["links"], author_name, paper_info["title"])
 
                     pdf_links = list()
                     try:
                         html = requests.get(paper_info["links"])
                         soup = BeautifulSoup(html.text, features="html.parser")
                         for link in soup.find_all("a"):
+                            # if the site offers a doi link, use it (e.g. IEEE)
+                            if link["href"].startswith("https://doi.org") and download_pdf:
+                                save_doi_pdfs(link["href"], author_name, paper_info["title"])
+
                             # special treatment for arxiv links
                             if paper_info["links"].startswith("https://arxiv.org") or \
-                                paper_info["links"].startswith("http://arxiv.org"):
+                                    paper_info["links"].startswith("http://arxiv.org"):
                                 link["href"] = paper_info["links"].replace("abs", "pdf", 1) + ".pdf"
                                 pdf_links.append(link["href"])
                                 break
 
                             if link["href"].lower().endswith(".pdf"):
                                 # escape parsing failures für slash characters
-                                link["href"] = link["href"].replace("%2F", "/", 1)
+                                link["href"] = link["href"].replace(
+                                    "%2F", "/", 1)
                                 # obtain the domain name
-                                domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
-                                                          html.url)
+                                domain_string = re.search(
+                                    r"^(?:[^\/]*\/){2}([^\/]*)", html.url)
                                 # if the link does not start with the domain name, concat it
                                 if not link["href"].startswith(domain_string.group()):
                                     # and if it starts with another domain, use that instead
                                     if link["href"].startswith("http") or \
-                                        link["href"].startswith("https"):
+                                            link["href"].startswith("https"):
                                         pdf_links.append(link["href"])
+                                        if download_pdf:
+                                            save_other_pdfs(link["href"],
+                                                            author_name, paper_info["title"])
                                     else:
-                                        pdf_links.append(domain_string.group() + link["href"])
+                                        pdf_links.append(
+                                            domain_string.group() + link["href"])
+                                        if download_pdf:
+                                            save_other_pdfs(link["href"],
+                                                            author_name, paper_info["title"])
                                 else:
                                     pdf_links.append(link["href"])
+                                    if download_pdf:
+                                        save_other_pdfs(link["href"],
+                                                        author_name, paper_info["title"])
                         paper_info["pdf_links"] = pdf_links
 
-                    except Exception as e:
+                    except Exception as _:
                         paper_info["pdf_links"] = ""
         return paper_info
 
@@ -160,16 +173,16 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
                     paper_info["links"] = item.getElementsByTagName("ee")[0].firstChild.data
                     # if download flag is true and a doi link is given, download the pdf
                     if paper_info["links"].startswith("https://doi.org") and download_pdf:
-                        orig_domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
-                                                       paper_info["links"])
-                        save_doi_pdfs(paper_info["links"], author_name,
-                                      orig_domain_string.group(), paper)
+                        save_doi_pdfs(paper_info["links"], author_name, paper_info["title"])
 
                     pdf_links = list()
                     try:
                         html = requests.get(paper_info["links"])
                         soup = BeautifulSoup(html.text, features="html.parser")
                         for link in soup.find_all("a"):
+                            # if the site offers a doi link, use it (e.g. IEEE)
+                            if link["href"].startswith("https://doi.org") and download_pdf:
+                                save_doi_pdfs(link["href"], author_name, paper_info["title"])
 
                             # special treatment for arxiv links
                             if paper_info["links"].startswith("https://arxiv.org") or \
@@ -182,28 +195,35 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
                                 # escape parsing failures für slash characters
                                 link["href"] = link["href"].replace("%2F", "/", 1)
                                 # obtain the domain name
-                                domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)",
-                                                          html.url)
+                                domain_string = re.search(r"^(?:[^\/]*\/){2}([^\/]*)", html.url)
                                 # if the link does not start with the domain name, concat it
                                 if not link["href"].startswith(domain_string.group()):
                                     # and if it starts with another domain, use that instead
                                     if link["href"].startswith("http") or \
                                         link["href"].startswith("https"):
                                         pdf_links.append(link["href"])
+                                        if download_pdf:
+                                            save_other_pdfs(link["href"],
+                                                            author_name, paper_info["title"])
                                     else:
                                         pdf_links.append(domain_string.group() + link["href"])
+                                        if download_pdf:
+                                            save_other_pdfs(link["href"],
+                                                            author_name, paper_info["title"])
                                 else:
                                     pdf_links.append(link["href"])
+                                    if download_pdf:
+                                        save_other_pdfs(link["href"], author_name, paper_info["title"])
                         paper_info["pdf_links"] = pdf_links
 
-                    except Exception as e:
+                    except Exception as _:
                         paper_info["pdf_links"] = ""
         return paper_info
     else:
         return None
 
 
-def save_doi_pdfs(url: str, name: str, domain: str, paper_name: str) -> None:
+def save_doi_pdfs(url: str, name: str, paper_name: str) -> None:
     """helper function to download the pdfs of a given doi link"""
     name = name.replace(" ", "_").lower()
     save_path = f"./{name}"
@@ -217,7 +237,7 @@ def save_doi_pdfs(url: str, name: str, domain: str, paper_name: str) -> None:
     scihub_download(url, paper_type="doi", out=pdf_save_path)
 
 
-def save_other_pdfs(url: str, name: str, domain: str, paper_name: str) -> None:
+def save_other_pdfs(url: str, name: str, paper_name: str) -> None:
     """helper function to download the pdfs of a given link"""
     name = name.replace(" ", "_").lower()
     save_path = f"./{name}"
@@ -249,10 +269,6 @@ def main(author: str, download_pdf: bool) -> None:
             paper_info_list = list()
             for paper in paper_list:
                 paper_info_list.append(get_paper_info(paper, download_pdf, person))
-                # save pdf links as pdf
-                #for paper_info["pdf_link"] in paper_info_list:
-                    #save_other_pdf(pdf_link, author_name, orig_domain_string.group(), paper)
-                    #pass
                 save_to_json(person, paper_info_list)
         else:
             print(f"No papers found for '{person}' ...")
