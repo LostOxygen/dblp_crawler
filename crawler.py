@@ -213,7 +213,8 @@ def get_paper_info(paper: str, download_pdf: bool, author_name: str) -> defaultd
                                 else:
                                     pdf_links.append(link["href"])
                                     if download_pdf:
-                                        save_other_pdfs(link["href"], author_name, paper_info["title"])
+                                        save_other_pdfs(link["href"], author_name,
+                                                        paper_info["title"])
                         paper_info["pdf_links"] = pdf_links
 
                     except Exception as _:
